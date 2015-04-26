@@ -79,8 +79,19 @@ int main (int argc, char *argv[])
 		//print out some validation if possible
 
 	
-	//Compute Gradient:
+	//Compute Gradient for a given matrix:
+		//have a previous weight matrix M (300*4096)
 		
+		//find Mv=M*img_vec (300*4096) dot (4096*1) = (300 * 1)
+		
+		//find word optimum: w_label_Mv (1 * 300) dot (300 *1) = scalar
+
+		//for all labels:
+			//find label within margin
+
+				//find losss
+		
+		//derivative is outer product
 
 
 
