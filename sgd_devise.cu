@@ -34,26 +34,40 @@ __global__ void primeP_gpu (unsigned int max, unsigned int *A, unsigned int *cou
     // more threads than you need)
     if (n >= max) return;
  
-    unsigned int a = A[n];
-    int found=0;
-    for (int i=2; i*i<=a; i++) {
-        if (a % i == 0){
-               found=1;
-        }
-    }
  
-    if (found == 0) {
-        // don't do this: threads overwrite each other's values
-        // causing undercount:
-        //    *count = *count + 1;
- 
-        // instead, use atomic operations:
-        atomicAdd(count, 1);
-    }
+    atomicAdd(count, 1);
  
 }
  
  
+__global__ void single_image_global_gpu (unsigned float *image_vec, int tr, float *W, 
+									float *word_vecs, 
+									float *Mv
+									float *gradient){
+	
+	//doing everything by row
+	int n=threadIdx.x;
+	int dot_sum=0.0;
+	for ( int i=0; i<4096; i++){
+		int idx=n*4096 + i;
+		dot_sum+=W[idx]*image_vec[i];
+	}
+	Mv[n]=dot_sum;
+	
+	__shared__ float label_word_vec[300];
+	label_word_vec[n]=word_vecs[300*tr+n];
+	
+	
+	__shared__ float w_label_Mv=0.0;
+	atomicAdd(w_label_Mv,Mv[n]*label_word_vec[n]);
+
+	float sum_w_err[300];
+	
+	if(n==1){
+		
+	
+}
+
 int main (int argc, char *argv[])
 {
 
@@ -65,21 +79,21 @@ int main (int argc, char *argv[])
 	// n is the number of filtered image vectors
 	
 	// initialize weight matrix (4096*300)
+	// put on global memory of the device
 
-	// initialize gradient matrix (4096 * 300)
+	//put word_vec matrix  (1000 * 300)
+	//onto device global memory
 
-	//for some n iterations:
-
-		//compute gradient of weights
-
-		//step=gradient * step_rate * momentum
-
-		//add step to weights
+	// for e in epochs:
+		//for n in total_images/minibatch_size:
+			
+			//load all the image vectors (1 * 4096)* mini_batch size
+			// or maximum amount of images
 
 		//print out some validation if possible
 
 	
-	//Compute Gradient for a given matrix:
+	//Compute Gradient for a given matrix (single and minibatch):
 		//have a previous weight matrix M (300*4096)
 		
 		//find Mv=M*img_vec (300*4096) dot (4096*1) = (300 * 1)
@@ -92,6 +106,10 @@ int main (int argc, char *argv[])
 				//find losss
 		
 		//derivative is outer product
+
+		//step=gradient * step_rate * momentum
+
+		//atomic_add step to weights
 
 
 
