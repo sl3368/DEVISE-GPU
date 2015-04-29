@@ -42,6 +42,7 @@ __global__ void primeP_gpu (unsigned int max, unsigned int *A, unsigned int *cou
  
 __global__ void single_image_global_gpu (unsigned float *image_vec, int tr, float *W, 
 									float *word_vecs, 
+									int word_vecs_count,
 									float *Mv
 									float *gradient){
 	
@@ -61,10 +62,39 @@ __global__ void single_image_global_gpu (unsigned float *image_vec, int tr, floa
 	__shared__ float w_label_Mv=0.0;
 	atomicAdd(w_label_Mv,Mv[n]*label_word_vec[n]);
 
-	float sum_w_err[300];
+	__shared__ float sum_w_err[300];
+	sum_w_err[n]=0.0;	
 	
-	if(n==1){
+	__syncthreads();
+
+	int n_loss=0;
+	float loss=0.0;
 		
+
+	if(n==1){
+		for(int i=0; i<word_vecs_count; i++){
+			if(i!=tr){
+				
+				//calculate w_j_Mv
+				int offset=i*300;
+				float w_j_Mv=0.0;
+				for(int j=0; j<300; j++)
+					w_j_Mv+=Mv[j]+word_vecs[offset+j];
+
+				float loss_j =  .1 - w_label_Mv + w_j_Mv
+				if(loss_j>0){
+                			n_loss    += 1
+                			loss      += loss_j
+			                for(int k=0;k<300;k++)
+						sum_w_err[k] += word_vecs[offset+k];
+					//breaking
+					i=word_vecs_count;
+				}	
+			}
+		}
+	}
+
+	
 	
 }
 
