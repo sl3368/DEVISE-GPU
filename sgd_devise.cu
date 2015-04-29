@@ -72,25 +72,89 @@ int main (int argc, char *argv[])
 {
 
    //1. Need to get data and word2vec in correct format:
+	int N = 500000;
 	//1-image vectors in 500,000 * 4096 float array
+	float images[N][4096];
 	//2-Corresponding image label
-	//3-check if the label has a word vector, if not, throw out
+	float labels[N];
+
+	// How do we get word vectors? From a pickle file?
+
+	//3-check if the label has a word vector, if not, throw out 
+
 	//(resultng in img_vecs (n*4096), img_labels (n,1), word_vecs (n,300)
 	// n is the number of filtered image vectors
 	
 	// initialize weight matrix (4096*300)
+	float *W;
 	// put on global memory of the device
+	GPU_CHECKERROR(
+	cudaMalloc((void**) &W, 4096*300*sizeof(float))
+	);
+
+	// weve used up 4.91 MB	of global memory
 
 	//put word_vec matrix  (1000 * 300)
 	//onto device global memory
 
-	// for e in epochs:
-		//for n in total_images/minibatch_size:
-			
-			//load all the image vectors (1 * 4096)* mini_batch size
-			// or maximum amount of images
+	float *word_vecs;
+	GPU_CHECKERROR(
+	cudaMalloc((void**) &word_vecs, 1000 * 300 * sizeof(float))
+	);
+	GPU_CHECKERROR(
+    cudaMemcpy ((void *) word_vecs,
+                (void *) host_word_vecs,
+                1000 * 300 * sizeof (unsigned int),
+                cudaMemcpyHostToDevice)
+    ); 
 
-		//print out some validation if possible
+	// weve used up 4.91 + 1.2 = 6.11 MB
+
+	int num_epochs;
+	int minibatch_size;
+
+	// Container for minibatch of images on device
+	unsigned float *image_vecs; 	
+	GPU_CHECKERROR(
+	cudaMalloc((void**) &image_vecs, minibatch_size * 4096 * sizeof(unsigned float))
+	);
+
+	// True labels for the minibatch of images
+	int *tr;
+	GPU_CHECKERROR(
+	cudaMalloc((void**) &tr, minibatch_size * sizeof(int))
+	);
+
+	// Mv
+	float *Mv;
+	GPU_CHECKERROR(
+	cudaMalloc((void**) &Mv, 300 * sizeof(float))
+	);
+		
+	// for e in epochs:
+	for(int i=0;i<num_epochs;i++) {
+		//for n in total_images/minibatch_size:
+		for(int j=0;j<ceil(N/minibatch_size); j++) {
+			//load all the image vectors (1 * 4096)* mini_batch size starting at index j*minibatch_size till (j+1)*minibatch_size-1 inclusive;
+			for(int k=j*minibatch_size, it=0; k<min(N, (j+1)*minibatch_size);k++, it++) {
+				GPU_CHECKERROR(
+    			cudaMemcpy ((void *) image_vecs+4096*it,
+    			            (void *) images[k],
+    			            4096 * sizeof (unsigned float),
+    			            cudaMemcpyHostToDevice)
+				);
+				GPU_CHECKERROR(
+    			cudaMemcpy ((void *) tr+it,
+    			            (void *) labels[k],
+    			            sizeof (int),
+    			            cudaMemcpyHostToDevice)
+				);
+		
+			}
+				
+		}
+	}
+	//print out some validation if possible
 
 	
 	//Compute Gradient for a given matrix (single and minibatch):
