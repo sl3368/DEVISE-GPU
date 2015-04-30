@@ -199,6 +199,7 @@ int main (int argc, char *argv[])
 					gradients,
 					.9,
 					.0001);
+		cudaDeviceSynchronize();
 	}
 /**	
 	for(int i=0;i<num_epochs;i++) {

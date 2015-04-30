@@ -22,22 +22,26 @@ static void gpuCheckError( cudaError_t err,
 __global__ void single_image_global_gpu (float *image_vec, int *tr, float *W, 
 									float *word_vecs, 
 									int word_vecs_count,
-									float *Mv,
+									float *M_v,
 									float *gradient,
 									float momentum,
 									float step_rate){
 	
 	//doing everything by row
+	int block=blockIdx.x;
 	int n=threadIdx.x;
 	int dot_sum=0.0;
+	__shared__ float Mv[300];
+
 	for ( int i=0; i<4096; i++){
 		int idx=n*4096 + i;
-		dot_sum+=W[idx]*image_vec[i];
+		dot_sum+=W[idx]*image_vec[block*4096+i];
 	}
+
 	Mv[n]=dot_sum;
 	
 	__shared__ float label_word_vec[300];
-	label_word_vec[n]=word_vecs[300*tr[0]+n];
+	label_word_vec[n]=word_vecs[300*tr[block]+n];
 	
 	
 	__shared__ float w_label_Mv[1];
@@ -88,13 +92,13 @@ __global__ void single_image_global_gpu (float *image_vec, int *tr, float *W,
 	//calculate outer product
 	//can move calculation and gradient step into the same loop
 	for(int j=0;j<4096; j++){
-		gradient[n*4096+j]=scale*label_word_vec[n]*image_vec[j];
+		atomicAdd(&W[n*4096+j],-1.0*scale*label_word_vec[n]*image_vec[j]*step_rate+momentum);
 	}
 
 	//updating with momentum coefficient (momentum * step)
-	for(int j=0;j<4096; j++){
-		W[n*4096+j]-=gradient[n*4096+j]*step_rate+momentum;
-	}
+	//for(int j=0;j<4096; j++){
+	//	W[n*4096+j]-=gradient[n*4096+j]*step_rate+momentum;
+	//}
 }
 
 int main (int argc, char *argv[])
@@ -149,7 +153,7 @@ int main (int argc, char *argv[])
 	// weve used up 4.91 + 1.2 = 6.11 MB
 
 
-	int minibatch_size=1;
+	int minibatch_size=10;
 	// Container for minibatch of images on device
 	float *image_vecs; 	
 	GPU_CHECKERROR(
@@ -203,7 +207,7 @@ int main (int argc, char *argv[])
 											stream0) );
 				
 				//run kernel
-				single_image_global_gpu<<<1, 300, 0, stream0>>>
+				single_image_global_gpu<<<10, 300, 0, stream0>>>
                                         (image_vecs,
                                         tr,
                                         W,
@@ -226,7 +230,7 @@ int main (int argc, char *argv[])
 											stream1) );
 				
 				//run kernel
-				single_image_global_gpu<<<1, 300, 0, stream1>>>
+				single_image_global_gpu<<<10, 300, 0, stream1>>>
                                         (image_vecs,
                                         tr,
                                         W,
