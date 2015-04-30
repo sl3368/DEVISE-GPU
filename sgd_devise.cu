@@ -211,17 +211,6 @@ int main (int argc, char *argv[])
 
 
 
-			/**for(int k=j*minibatch_size, it=0; k<min(N, (j+1)*minibatch_size);k++, it++) {
-				GPU_CHECKERROR(
-		    			cudaMemcpy ((void *) image_vecs+4096*it,(void *) images[k],4096 * sizeof (float),
-    				            cudaMemcpyHostToDevice)
-				);
-				GPU_CHECKERROR(
-  					cudaMemcpy ((void *) tr+it,(void *) labels[k],sizeof (int),
-    			            	   cudaMemcpyHostToDevice)
-				);
-		
-			}**/
 				
 		}
 	}
