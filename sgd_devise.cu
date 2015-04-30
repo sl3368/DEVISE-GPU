@@ -101,13 +101,13 @@ __global__ void single_image_global_gpu (float *image_vec, int *tr, float *W,
 int main (int argc, char *argv[])
 {
 
-   //1. Need to get data and word2vec in correct format:
-	int N = 50000;
+	int N = 50;
 	//1-image vectors in 50,000 * 4096 float array
 	float images[N*4096];
 	//2-Corresponding image label
-	float labels[N];
+	int labels[N];
 
+	printf("Here\n");	
 	// How do we get word vectors? From a pickle file?
 	float host_word_vecs[1000*300];
 	//3-check if the label has a word vector, if not, throw out 
@@ -117,7 +117,7 @@ int main (int argc, char *argv[])
 		for(int k=0; k<4096; k++){
 			images[i*4096+k]=3.0;
 		}
-		labels[i]=2.0;
+		labels[i]=2;
 	}
 	
 	for(int i=0; i<1000; i++){
@@ -126,7 +126,6 @@ int main (int argc, char *argv[])
 		}
 	}
 
-	
 	// initialize weight matrix (4096*300)
 	float *W;
 	GPU_CHECKERROR(
@@ -177,23 +176,44 @@ int main (int argc, char *argv[])
 	);
 	
 	int num_epochs=10;
-	
+	GPU_CHECKERROR(
+    		cudaMemcpy ((void *) image_vecs,(void *) images, 4096 * sizeof (float),
+ 	            cudaMemcpyHostToDevice)
+	);
+
+	GPU_CHECKERROR(
+  		cudaMemcpy ((void *) tr,(void *) labels, sizeof (int),
+    	            cudaMemcpyHostToDevice)
+	);
+		
+	//run kernel
+	single_image_global_gpu<<<1, 300>>>
+                               (image_vecs,
+                                       tr,
+                                        W,
+					host_word_vecs,
+					1000,
+					Mv,
+					gradients,
+					.9,
+					.0001);
+/**	
 	for(int i=0;i<num_epochs;i++) {
 		//for n in total_images/minibatch_size:
 		for(int j=0;j<ceil(N/(2*minibatch_size)); j++) {
 			//Using streams:
 				//create chunk for image_vecs and labels
 				float *img_vec_chunk=images+(4096*j);
-				float *img_labels_chunk=labels+j;						
+				int *img_labels_chunk=labels+j;						
 				
 				//load onto GPU
-				GPU_CHECKERROR(
-		    			cudaMemcpy ((void *) image_vecs,(void *) img_vec_chunk, minibatch_size*4096 * sizeof (float),
-    				            cudaMemcpyHostToDevice)
-				);
+				//GPU_CHECKERROR(
+		    		//	cudaMemcpy ((void *) image_vecs,(void *) images, minibatch_size* 4096 * sizeof (float),
+    				//            cudaMemcpyHostToDevice)
+				//);
 				
 				GPU_CHECKERROR(
-		    			cudaMemcpy ((void *) tr,(void *) img_labels_chunk, minibatch_size * sizeof (float),
+		    			cudaMemcpy ((void *) tr,(void *) img_labels_chunk, minibatch_size * sizeof (int),
     				            cudaMemcpyHostToDevice)
 				);
 				
@@ -218,7 +238,7 @@ int main (int argc, char *argv[])
 
 		}
 	}
-
+**/
 /**
     //Simple error checking
     if(argc<3 || argc>4){
