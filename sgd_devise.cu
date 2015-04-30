@@ -19,7 +19,7 @@ static void gpuCheckError( cudaError_t err,
 //need multiple kernels for different types of dot products
 //and outer products mainly
  
-__global__ void single_image_global_gpu (float *image_vec, int tr, float *W, 
+__global__ void single_image_global_gpu (float *image_vec, int *tr, float *W, 
 									float *word_vecs, 
 									int word_vecs_count,
 									float *Mv,
@@ -37,7 +37,7 @@ __global__ void single_image_global_gpu (float *image_vec, int tr, float *W,
 	Mv[n]=dot_sum;
 	
 	__shared__ float label_word_vec[300];
-	label_word_vec[n]=word_vecs[300*tr+n];
+	label_word_vec[n]=word_vecs[300*tr[0]+n];
 	
 	
 	__shared__ float w_label_Mv[1];
@@ -55,7 +55,7 @@ __global__ void single_image_global_gpu (float *image_vec, int tr, float *W,
 
 	if(n==1){
 		for(int i=0; i<word_vecs_count; i++){
-			if(i!=tr){
+			if(i!=tr[0]){
 				
 				//calculate w_j_Mv
 				int offset=i*300;
@@ -104,43 +104,39 @@ int main (int argc, char *argv[])
    //1. Need to get data and word2vec in correct format:
 	int N = 50000;
 	//1-image vectors in 50,000 * 4096 float array
-	float images[N][4096];
+	float images[N*4096];
 	//2-Corresponding image label
 	float labels[N];
 
 	// How do we get word vectors? From a pickle file?
-	float host_word_vecs[1000][300];
+	float host_word_vecs[1000*300];
 	//3-check if the label has a word vector, if not, throw out 
 
 	//creating data
 	for(int i=0;i<N;i++){
 		for(int k=0; k<4096; k++){
-			images[i][k]=3.0;
+			images[i*4096+k]=3.0;
 		}
 		labels[i]=2.0;
 	}
 	
 	for(int i=0; i<1000; i++){
 		for(int k=0; k<300; k++){
-			host_word_vecs[i][k]=5.0;
+			host_word_vecs[i*300+k]=5.0;
 		}
 	}
 
 	
 	// initialize weight matrix (4096*300)
 	float *W;
-	// put on global memory of the device
 	GPU_CHECKERROR(
 		cudaMalloc((void**) &W, 4096*300*sizeof(float))
 	);
-
-	//NEED TO MEMSET TO ZERO!!
-
+	cudaMemset ((void *) W, 0, 4096*300*sizeof (unsigned int));
 	// weve used up 4.91 MB	of global memory
 
 	//put word_vec matrix  (1000 * 300)
 	//onto device global memory
-
 	float *word_vecs;
 	GPU_CHECKERROR(
 		cudaMalloc((void**) &word_vecs, 1000 * 300 * sizeof(float))
@@ -154,9 +150,8 @@ int main (int argc, char *argv[])
 
 	// weve used up 4.91 + 1.2 = 6.11 MB
 
-	int num_epochs=10;
-	int minibatch_size=1;
 
+	int minibatch_size=1;
 	// Container for minibatch of images on device
 	float *image_vecs; 	
 	GPU_CHECKERROR(
@@ -169,22 +164,26 @@ int main (int argc, char *argv[])
 		cudaMalloc((void**) &tr, minibatch_size * sizeof(int))
 	);
 
+	//Gradients
+	float gradients[300*minibatch_size*4096];	
+	GPU_CHECKERROR(
+		cudaMalloc((void**) &gradients, minibatch_size * 300 * 4096 * sizeof(int))
+	);
+
 	// Mv
 	float *Mv;
 	GPU_CHECKERROR(
 		cudaMalloc((void**) &Mv, 300 * sizeof(float))
 	);
-
-//	float img_vec_chunk[minibatch_size][4096];
-//	float img_label_chunk[minibatch_size][1];	
 	
-	// for e in epochs:
+	int num_epochs=10;
+	
 	for(int i=0;i<num_epochs;i++) {
 		//for n in total_images/minibatch_size:
 		for(int j=0;j<ceil(N/(2*minibatch_size)); j++) {
 			//Using streams:
 				//create chunk for image_vecs and labels
-				float *img_vec_chunk=images[0]+(4096*j);
+				float *img_vec_chunk=images+(4096*j);
 				float *img_labels_chunk=labels+j;						
 				
 				//load onto GPU
@@ -199,7 +198,16 @@ int main (int argc, char *argv[])
 				);
 				
 				//run kernel
-
+				single_image_global_gpu<<<1, 300>>>
+                                        (image_vecs,
+                                        tr,
+                                        W,
+					host_word_vecs,
+					1000,
+					Mv,
+					gradients,
+					.9,
+					.0001);
 				//create second chunk
 
 				//load onto GPU
@@ -208,10 +216,6 @@ int main (int argc, char *argv[])
 
 				//perform validation somehow
 
-
-
-
-				
 		}
 	}
 
