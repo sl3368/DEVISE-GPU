@@ -95,7 +95,6 @@ __global__ void single_image_global_gpu (float *image_vec, int *tr, float *W,
 	for(int j=0;j<4096; j++){
 		W[n*4096+j]-=gradient[n*4096+j]*step_rate+momentum;
 	}
-	
 }
 
 int main (int argc, char *argv[])
@@ -164,7 +163,8 @@ int main (int argc, char *argv[])
 	);
 
 	//Gradients
-	float gradients[300*minibatch_size*4096];	
+	//float gradients[300*minibatch_size*4096];	
+	float *gradients;
 	GPU_CHECKERROR(
 		cudaMalloc((void**) &gradients, minibatch_size * 300 * 4096 * sizeof(int))
 	);
@@ -174,55 +174,61 @@ int main (int argc, char *argv[])
 	GPU_CHECKERROR(
 		cudaMalloc((void**) &Mv, 300 * sizeof(float))
 	);
-	
-	int num_epochs=10;
-	GPU_CHECKERROR(
-    		cudaMemcpy ((void *) image_vecs,(void *) images, 4096 * sizeof (float),
- 	            cudaMemcpyHostToDevice)
-	);
 
-	GPU_CHECKERROR(
-  		cudaMemcpy ((void *) tr,(void *) labels, sizeof (int),
-    	            cudaMemcpyHostToDevice)
-	);
-		
-	//run kernel
-	single_image_global_gpu<<<1, 300>>>
-                               (image_vecs,
-                                       tr,
-                                        W,
-					host_word_vecs,
-					1000,
-					Mv,
-					gradients,
-					.9,
-					.0001);
-/**	
+	cudaStream_t    stream0, stream1;
+	GPU_CHECKERROR( cudaStreamCreate( &stream0 ) );	
+	GPU_CHECKERROR( cudaStreamCreate( &stream1 ) );	
+	int num_epochs=1;
+	//GPU_CHECKERROR(
+    //		cudaMemcpy ((void *) image_vecs,(void *) images, 4096 * sizeof (float),
+ 	//            cudaMemcpyHostToDevice)
+	//);
+
+	//GPU_CHECKERROR(
+  	//	cudaMemcpy ((void *) tr,(void *) labels, sizeof (int),
+    //	            cudaMemcpyHostToDevice)
+	//);
+	//	
+	////run kernel
+	//single_image_global_gpu<<<1, 300>>>
+    //                           (image_vecs,
+    //                                   tr,
+    //                                    W,
+	//				host_word_vecs,
+	//				1000,
+	//				Mv,
+	//				gradients,
+	//				.9,
+	//				.0001);
+
+	//For ith epoch
 	for(int i=0;i<num_epochs;i++) {
-		//for n in total_images/minibatch_size:
-		for(int j=0;j<ceil(N/(2*minibatch_size)); j++) {
+		//For jth image 
+		for(int j=0;j<N;j+= minibatch_size*2) {
 			//Using streams:
 				//create chunk for image_vecs and labels
-				float *img_vec_chunk=images+(4096*j);
-				int *img_labels_chunk=labels+j;						
+				float *img_vec_chunk_0=images+(4096*j);
+				float *img_vec_chunk_1=images+(4096*j)+minibatch_size*4096;
+				int *img_labels_chunk_0=labels+j;						
+				int *img_labels_chunk_1=labels+j+minibatch_size;						
 				
 				//load onto GPU
-				//GPU_CHECKERROR(
-		    		//	cudaMemcpy ((void *) image_vecs,(void *) images, minibatch_size* 4096 * sizeof (float),
-    				//            cudaMemcpyHostToDevice)
-				//);
+		    	GPU_CHECKERROR ( cudaMemcpyAsync ((void *) image_vecs, (void *) img_vec_chunk_0,					
+											minibatch_size* 4096 * sizeof (float),
+    				            			cudaMemcpyHostToDevice,
+											stream0) );
 				
-				GPU_CHECKERROR(
-		    			cudaMemcpy ((void *) tr,(void *) img_labels_chunk, minibatch_size * sizeof (int),
-    				            cudaMemcpyHostToDevice)
-				);
+		    	GPU_CHECKERROR ( cudaMemcpyAsync ( (void *) tr, (void *) img_labels_chunk_0,
+											minibatch_size * sizeof (int),
+    				            			cudaMemcpyHostToDevice,
+											stream0) );
 				
 				//run kernel
-				single_image_global_gpu<<<1, 300>>>
+				single_image_global_gpu<<<1, 300, 0, stream0>>>
                                         (image_vecs,
                                         tr,
                                         W,
-					host_word_vecs,
+					word_vecs,
 					1000,
 					Mv,
 					gradients,
@@ -230,6 +236,27 @@ int main (int argc, char *argv[])
 					.0001);
 				//create second chunk
 
+		    	GPU_CHECKERROR ( cudaMemcpyAsync ((void *) image_vecs, (void *) img_vec_chunk_1,					
+											minibatch_size* 4096 * sizeof (float),
+    				            			cudaMemcpyHostToDevice,
+											stream1) );
+				
+		    	GPU_CHECKERROR ( cudaMemcpyAsync ( (void *) tr, (void *) img_labels_chunk_1,
+											minibatch_size * sizeof (int),
+    				            			cudaMemcpyHostToDevice,
+											stream1) );
+				
+				//run kernel
+				single_image_global_gpu<<<1, 300, 0, stream1>>>
+                                        (image_vecs,
+                                        tr,
+                                        W,
+					word_vecs,
+					1000,
+					Mv,
+					gradients,
+					.9,
+					.0001);
 				//load onto GPU
 
 				//run kernel
@@ -238,7 +265,23 @@ int main (int argc, char *argv[])
 
 		}
 	}
-**/
+
+	GPU_CHECKERROR( cudaStreamSynchronize( stream0 ) );
+	GPU_CHECKERROR( cudaStreamSynchronize( stream1 ) );
+
+	//GPU_CHECKERROR( cudaFreeHost( images ) );
+	//GPU_CHECKERROR( cudaFreeHost( labels ) );
+	//GPU_CHECKERROR( cudaFreeHost( host_word_vecs ) );
+	GPU_CHECKERROR( cudaFree( W ) );
+	GPU_CHECKERROR( cudaFree( word_vecs ) );
+	GPU_CHECKERROR( cudaFree( image_vecs ) );
+	GPU_CHECKERROR( cudaFree( tr ) );
+	GPU_CHECKERROR( cudaFree( gradients ) );
+	GPU_CHECKERROR( cudaFree( Mv ) );
+
+	GPU_CHECKERROR( cudaStreamDestroy( stream0 ) );
+	GPU_CHECKERROR( cudaStreamDestroy( stream1 ) );
+	//GPU_CHECKERROR( cudaStreamDestroy( stream1 ) );
 /**
     //Simple error checking
     if(argc<3 || argc>4){
