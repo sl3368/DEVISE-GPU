@@ -1,2 +1,2 @@
-sgd: sgd_devise.cu
-	nvcc sgd_devise.cu -o sgd -arch=sm_30	
+sgd_plain: sgd_plain_single.cu
+	nvcc sgd_plain_single.cu -o sgd_plain_single -arch=sm_30	
