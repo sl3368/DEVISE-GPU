@@ -115,19 +115,48 @@ int main (int argc, char *argv[])
 	float host_word_vecs[1000*300];
 	//3-check if the label has a word vector, if not, throw out 
 
+	ifstream im; 
+    im.open(argv[1]);
+
+    for(int i=0;i<N;i++) {
+        for(int j=0;j<4096;j++) {
+            im >> *(images+4096*i+j);
+        }   
+    }   
+
+    im.close();
+
+    ifstream wvec;
+    wvec.open(argv[2]);
+
+    for(int i=0;i<1000;i++) {
+        for(int j=0;j<300;j++) {
+            wvec >> *(host_word_vecs+300*i+j);
+        }   
+    }   
+
+    wvec.close();
+
 	//creating data
-	for(int i=0;i<N;i++){
-		for(int k=0; k<4096; k++){
-			images[i*4096+k]=3.0;
-		}
-		labels[i]=2;
-	}
-	
-	for(int i=0; i<1000; i++){
-		for(int k=0; k<300; k++){
-			host_word_vecs[i*300+k]=5.0;
-		}
-	}
+	//for(int i=0;i<N;i++){
+	//	for(int k=0; k<4096; k++){
+	//		images[i*4096+k]=3.0;
+	//	}
+	//	labels[i]=2;
+	//}
+	//
+	//for(int i=0; i<1000; i++){
+	//	for(int k=0; k<300; k++){
+	//		host_word_vecs[i*300+k]=5.0;
+	//	}
+	//}
+
+	cudaEvent_t     start, stop;
+    float           elapsedTime;
+
+    // start the timers
+    GPU_CHECKERROR( cudaEventCreate( &start ) );
+    GPU_CHECKERROR( cudaEventCreate( &stop ) );
 
 	// initialize weight matrix (4096*300)
 	float *W;
@@ -183,6 +212,8 @@ int main (int argc, char *argv[])
 	GPU_CHECKERROR( cudaStreamCreate( &stream0 ) );	
 	GPU_CHECKERROR( cudaStreamCreate( &stream1 ) );	
 	int num_epochs=1;
+
+	GPU_CHECKERROR( cudaEventRecord( start, 0 ) );
 	
 	//For ith epoch
 	for(int i=0;i<num_epochs;i++) {
@@ -251,6 +282,14 @@ int main (int argc, char *argv[])
 
 	GPU_CHECKERROR( cudaStreamSynchronize( stream0 ) );
 	GPU_CHECKERROR( cudaStreamSynchronize( stream1 ) );
+
+	GPU_CHECKERROR( cudaEventRecord( stop, 0 ) );
+
+    GPU_CHECKERROR( cudaEventSynchronize( stop ) );
+    GPU_CHECKERROR( cudaEventElapsedTime( &elapsedTime,
+                start, stop ) );
+
+    printf( "Time taken:  %3.1f ms\n", elapsedTime );
 
 	//GPU_CHECKERROR( cudaFreeHost( images ) );
 	//GPU_CHECKERROR( cudaFreeHost( labels ) );
