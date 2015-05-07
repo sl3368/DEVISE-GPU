@@ -99,12 +99,16 @@ int main (int argc, char *argv[])
 
 	// Number of input images
 	int N = 20;
+	// Number of validation images
+	int M = N/4;	
 
 	// Image vectors in N * 4096 float array
 	float images[N*4096];
+	float validation_images[M*4096];
 
 	// Corresponding image labels
 	int labels[N];
+	int validation_labels[M];
 
 	// Word vector array
 	float host_word_vecs[1000*300];
@@ -121,9 +125,43 @@ int main (int argc, char *argv[])
 	
 	im.close();
 
+	// Read validation images from file
+	ifstream im;
+	im.open(argv[2]);
+	
+	for(int i=0;i<M;i++) {
+		for(int j=0;j<4096;j++) {
+			im >> *(validation_images+4096*i+j);
+		}
+	}
+	
+	im.close();
+
+	//Read labels from file
+	ifstream wvec;
+	wvec.open(argv[3]);
+	
+	for(int i=0;i<N;i++) {
+			wvec >> *(labels+i);
+		}
+	}
+	
+	wvec.close();
+
+	//Read validation labels from file
+	ifstream wvec;
+	wvec.open(argv[4]);
+	
+	for(int i=0;i<M;i++) {
+			wvec >> *(validation_labels+i);
+		}
+	}
+	
+	wvec.close();
+
 	// Read word vectors from file
 	ifstream wvec;
-	wvec.open(argv[2]);
+	wvec.open(argv[5]);
 	
 	for(int i=0;i<1000;i++) {
 		for(int j=0;j<300;j++) {
@@ -140,6 +178,9 @@ int main (int argc, char *argv[])
     // start the timers
     GPU_CHECKERROR( cudaEventCreate( &start ) );
     GPU_CHECKERROR( cudaEventCreate( &stop ) );
+
+	// initialize host weight matrix (4096*300)
+	float host_W[4096*300];
 
 	// initialize weight matrix (4096*300)
 	float *W;
@@ -251,6 +292,16 @@ int main (int argc, char *argv[])
 										.0001);									//step_rate
 
 		}
+		
+		// Pull out weights after each epoch and calculate validation accuracy
+		GPU_CHECKERROR ( cudaMemcpyAsync ( (void *) &host_W, (void *) W,
+							4096*300* sizeof (float),
+    		    			cudaMemcpyHostToDevice,
+							stream1) );
+
+		// Calculate validation accuracy here 
+		
+		
 	}
 
 	GPU_CHECKERROR( cudaStreamSynchronize( stream0 ) );
