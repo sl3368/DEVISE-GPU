@@ -102,13 +102,11 @@ int main (int argc, char *argv[])
 {
 
 	int N = 50;
-	//1-image vectors in 50,000 * 4096 float array
+	//1-image vectors in 50 * 4096 float array
 	float images[N*4096];
 	//2-Corresponding image label
 	int labels[N];
 
-	printf("Here\n");	
-	// How do we get word vectors? From a pickle file?
 	float host_word_vecs[1000*300];
 	//3-check if the label has a word vector, if not, throw out 
 

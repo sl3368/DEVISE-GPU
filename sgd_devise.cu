@@ -27,7 +27,7 @@ __global__ void single_image_global_gpu (float *image_vec, int *tr, float *W,
 	int n=threadIdx.x;
 
 	//compute initial low-dimensional image vector Mv
-	int dot_sum=0.0;
+	float dot_sum=0.0;
 	for ( int i=0; i<4096; i++){
 		int idx=n*4096 + i;
 		dot_sum+=W[idx]*image_vec[i];
@@ -93,6 +93,20 @@ __global__ void single_image_global_gpu (float *image_vec, int *tr, float *W,
 		W[n*4096+j]-=gradient[n*4096+j]*step_rate+momentum;
 	}
 }
+
+float held_out_error(int num_held_out, float *weights, float *held_out_img_vecs, int *class_labels, float *img_vectors){
+	float loss=0.0;
+	float Mv[300];
+	for(int i=0; i<num_held_out; i++){
+		for(int idx=0
+			float dot_sum=0.0;
+			for ( int i=0; i<4096; i++){
+				int idx=n*4096 + i;
+				dot_sum+=W[idx]*image_vec[i];
+			}
+	Mv[n]=dot_sum;
+}
+}	
 
 int main (int argc, char *argv[])
 {
