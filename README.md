@@ -1,8 +1,11 @@
-GPU Programming Project
-Sameer Lal, Prateek Goel
+####**Accelerating the DeViSE Objective in CUDA**
+*Sameer Lal, Prateek Goel*
 
-Instructions :
+#To compile:
+`make`
 
-To run either of the .cu files, please run the following command : 
+#For specific types *(single image, mini-batch, or mini-batch chunks)*:
+`make <type>`
 
-nvcc file.cu image_data word_vectors -arch=sm_30
+#To run:
+`./<type> <image_vectors> <held_out_image_vectors> <image_labels> <held_out_image_labels> <word_vectors>`
