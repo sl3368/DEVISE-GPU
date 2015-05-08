@@ -94,18 +94,49 @@ __global__ void single_image_global_gpu (float *image_vec, int *tr, float *W,
 	}
 }
 
-float held_out_error(int num_held_out, float *weights, float *held_out_img_vecs, int *class_labels, float *img_vectors){
+float held_out_error(int num_held_out, float *weights, float *held_out_img_vecs, int *class_labels, float *word_vectors){
 	float loss=0.0;
 	float Mv[300];
-	for(int i=0; i<num_held_out; i++){
-		for(int idx=0
+	for(int j=0; j<num_held_out; j++){
+		for(int n=0;n<300;n++){
 			float dot_sum=0.0;
 			for ( int i=0; i<4096; i++){
 				int idx=n*4096 + i;
 				dot_sum+=W[idx]*image_vec[i];
 			}
-	Mv[n]=dot_sum;
-}
+			Mv[n]=dot_sum;
+		}
+		int class=class_labels[j];
+		float correct_vec[300];
+		for(int t=0;t<300;t++){
+			correct_vec[t]=word_vectors[300*class+t];
+		}
+		
+		float v_w=0.0;
+		for(int t=0;t<300;t++){
+			v_w+=correct_vec[t]*Mv[t];
+		}
+		
+		for(int r=0;r<1000;r++){
+			if(r!=class){
+				//calculate with respect to label
+				float incorrect_vec[300];
+				for(int t=0;t<300;t++){
+					incorrect_vec[t]=word_vectors[300*r+t];
+				}
+				float r_w=0.0;
+				for(int t=0;t<300;t++){
+					r_w+=incorrect_vec[t]*Mv[t];
+				}
+						
+				float loss_j = 0.1 - v_w + r_w; //hard coding of margin
+				if(loss_j>0){
+					loss+=loss_j;
+				}
+			}
+		}
+	}
+	return loss/num_held_out;
 }	
 
 int main (int argc, char *argv[])
