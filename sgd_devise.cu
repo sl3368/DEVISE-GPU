@@ -162,62 +162,52 @@ int main (int argc, char *argv[])
 	fp = fopen(argv[1],"r");
 
 	char newline;	
-
 	for(int i=0;i<N;i++) {
 		for(int j=0;j<4096;j++) {
 			fscanf(fp, "%f%c", (images+4096*i+j), &newline);
 		}
 	}
-	
 	fclose(fp);
 
 	// Read validation images from file
 	fp = fopen(argv[2],"r");
-	
 	for(int i=0;i<M;i++) {
 		for(int j=0;j<4096;j++) {
 			fscanf(fp, "%f%c", (validation_images+4096*i+j),&newline);
 		}
 	}
-	
 	fclose(fp);
 
 	//Read labels from file
 	fp = fopen(argv[3],"r");
-	
 	for(int i=0;i<N;i++) {
 			fscanf(fp, "%d%c", (labels+i), &newline);
 	}
-
 	fclose(fp);
 
 	//Read validation labels from file
 	fp = fopen(argv[4],"r");
-	
 	for(int i=0;i<M;i++) {
 			fscanf(fp, "%d%c", (validation_labels+i), &newline);
 	}
-	
 	fclose(fp);
 
 	// Read word vectors from file
 	fp = fopen(argv[5],"r");
-	
 	for(int i=0;i<1000;i++) {
 		for(int j=0;j<300;j++) {
 			fscanf(fp, "%f%c", (host_word_vecs+300*i+j), &newline);
 		}
 	}
-	
 	fclose(fp);
 
 	// create timers
 	cudaEvent_t     start, stop;
-    float           elapsedTime;
+        float           elapsedTime;
 
-    // start the timers
-    GPU_CHECKERROR( cudaEventCreate( &start ) );
-    GPU_CHECKERROR( cudaEventCreate( &stop ) );
+    	// start the timers
+    	GPU_CHECKERROR( cudaEventCreate( &start ) );
+    	GPU_CHECKERROR( cudaEventCreate( &stop ) );
 
 	// initialize host weight matrix (4096*300)
 	float host_W[4096*300];
@@ -279,68 +269,70 @@ int main (int argc, char *argv[])
 	for(int i=0;i<num_epochs;i++) {
 		//For jth image 
 		for(int j=0;j<N;j+= minibatch_size*2) {
-				//create chunk for images and labels
-				float *img_vec_chunk_0=images+(4096*j);							//image chunk for stream0
-				float *img_vec_chunk_1=images+(4096*j)+minibatch_size*4096;		//image chunk for stream1
-				int *img_labels_chunk_0=labels+j;								//label chunk for stream0	
-				int *img_labels_chunk_1=labels+j+minibatch_size;				//label chunk for stream1	
+			//create chunk for images and labels
+			float *img_vec_chunk_0=images+(4096*j);							//image chunk for stream0
+			float *img_vec_chunk_1=images+(4096*j)+minibatch_size*4096;		//image chunk for stream1
+			int *img_labels_chunk_0=labels+j;								//label chunk for stream0	
+			int *img_labels_chunk_1=labels+j+minibatch_size;				//label chunk for stream1	
 				
 				//first stream of image and vector chunks to GPU
-			    GPU_CHECKERROR ( cudaMemcpyAsync ((void *) image_vecs, (void *) img_vec_chunk_0,					
+			GPU_CHECKERROR ( cudaMemcpyAsync ((void *) image_vecs, (void *) img_vec_chunk_0,					
 										minibatch_size* 4096 * sizeof (float),
     			            			cudaMemcpyHostToDevice,
 										stream0) );
 				
-			    GPU_CHECKERROR ( cudaMemcpyAsync ( (void *) tr, (void *) img_labels_chunk_0,
+		 	GPU_CHECKERROR ( cudaMemcpyAsync ( (void *) tr, (void *) img_labels_chunk_0,
 										minibatch_size * sizeof (int),
     			            			cudaMemcpyHostToDevice,
 										stream0) );
 				
-				//run kernel
-				single_image_global_gpu<<<1, 300, 0, stream0>>>
-                                        (image_vecs,							//image vectors on GPU
-                                        tr,										//true labels 
-                                        W,										//weight matrix
-										word_vecs,								//word vectors for all 1000 classes
-										1000,									//number of classes
-										Mv,										//low dimensional image vector
-										gradients,								//gradients of mini-batch of images
-										.9,										//momentum
-										.0001);									//step_rate
+			//run kernel
+			single_image_global_gpu<<<1, 300, 0, stream0>>>
+                                        (image_vecs,//image vectors on GPU
+                                        tr,//true labels 
+                                        W,//weight matrix
+					word_vecs,//word vectors for all 1000 classes
+					1000,//number of classes
+					Mv,//low dimensional image vector
+					gradients,//gradients of mini-batch of images
+					.9,//momentum
+					.0001);	//step_rate
 
-				//second stream of image and vector chunks to GPU
-			    GPU_CHECKERROR ( cudaMemcpyAsync ((void *) image_vecs, (void *) img_vec_chunk_1,					
+			//second stream of image and vector chunks to GPU
+			GPU_CHECKERROR ( cudaMemcpyAsync ((void *) image_vecs, (void *) img_vec_chunk_1,					
 										minibatch_size* 4096 * sizeof (float),
-    			            			cudaMemcpyHostToDevice,
+										cudaMemcpyHostToDevice,
 										stream1) );
 				
-		    	GPU_CHECKERROR ( cudaMemcpyAsync ( (void *) tr, (void *) img_labels_chunk_1,
+			GPU_CHECKERROR ( cudaMemcpyAsync ( (void *) tr, (void *) img_labels_chunk_1,
 										minibatch_size * sizeof (int),
-    			            			cudaMemcpyHostToDevice,
+										cudaMemcpyHostToDevice,
 										stream1) );
 				
-				//run kernel
-				single_image_global_gpu<<<1, 300, 0, stream1>>>
-                                        (image_vecs,							//image vectors on GPU
-                                        tr,										//true labels 
-                                        W,										//weight matrix
-										word_vecs,								//word vectors for all 1000 classes
-										1000,									//number of classes
-										Mv,										//low dimensional image vector
-										gradients,								//gradients of mini-batch of images
-										.9,										//momentum
-										.0001);									//step_rate
+			//run kernel
+			single_image_global_gpu<<<1, 300, 0, stream1>>>
+                                        (image_vecs,//image vectors on GPU
+                                        tr,//true labels 
+                                        W,//weight matrix
+					word_vecs,//word vectors for all 1000 classes
+					1000,//number of classes
+					Mv,//low dimensional image vector
+					gradients,//gradients of mini-batch of images
+					.9,//momentum
+					.0001);	//step_rate
 
 		}
 		
 		// Pull out weights after each epoch and calculate validation accuracy
 		GPU_CHECKERROR ( cudaMemcpyAsync ( (void *) &host_W, (void *) W,
 							4096*300* sizeof (float),
-    		    			cudaMemcpyHostToDevice,
+							cudaMemcpyHostToDevice,
 							stream1) );
 
-		// Calculate validation accuracy here 
-		
+		// Calculate validation accuracy here i
+		float validation_error=held_out_error((sizeof(validation_labels)/sizeof(validation_labels[0])), W, 
+								validation_images, validation_labels, host_word_vecs);
+		printf("Validation Error: %10.3f\n",validation_error);		
 		
 	}
 
@@ -350,11 +342,11 @@ int main (int argc, char *argv[])
 	//Time the kernel run
 	GPU_CHECKERROR( cudaEventRecord( stop, 0 ) );
 
-    GPU_CHECKERROR( cudaEventSynchronize( stop ) );
-    GPU_CHECKERROR( cudaEventElapsedTime( &elapsedTime,
+	GPU_CHECKERROR( cudaEventSynchronize( stop ) );
+        GPU_CHECKERROR( cudaEventElapsedTime( &elapsedTime,
                 start, stop ) );
 
-    printf( "Time taken:  %3.1f ms\n", elapsedTime );
+        printf( "Time taken:  %3.1f ms\n", elapsedTime );
 
 	//Free device memory
 	GPU_CHECKERROR( cudaFree( W ) );
