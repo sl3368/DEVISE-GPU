@@ -2,7 +2,7 @@
 #include <sys/time.h>
 #include <cuda.h>
 #include <stdlib.h> 
- 
+
 // error checking for CUDA calls: use this around ALL your calls!
 #define GPU_CHECKERROR( err ) (gpuCheckError( err, __FILE__, __LINE__ ))
 static void gpuCheckError( cudaError_t err,
@@ -119,62 +119,58 @@ int main (int argc, char *argv[])
 	float host_word_vecs[1000*300];
 
 	// Read input images from file
-	ifstream im;
-	im.open(argv[1]);
-	
-	for(int i=0;i<N;i++) {
-		for(int j=0;j<4096;j++) {
-			im >> *(images+4096*i+j);
-		}
-	}
-	
-	im.close();
+    FILE *fp;
+    fp = fopen(argv[1],"r");
 
-	// Read validation images from file
-    ifstream im;
-    im.open(argv[2]);
+    char newline;
+
+    for(int i=0;i<N;i++) {
+        for(int j=0;j<4096;j++) {
+            fscanf(fp, "%f%c", (images+4096*i+j), &newline);
+        }
+    }
+
+    fclose(fp);
+
+    // Read validation images from file
+    fp = fopen(argv[2],"r");
 
     for(int i=0;i<M;i++) {
         for(int j=0;j<4096;j++) {
-            im >> *(validation_images+4096*i+j);
+            fscanf(fp, "%f%c", (validation_images+4096*i+j),&newline);
         }
     }
-   
-    im.close();
+
+    fclose(fp);
 
     //Read labels from file
-    ifstream wvec;
-    wvec.open(argv[3]);
-
+    fp = fopen(argv[3],"r");
+       
     for(int i=0;i<N;i++) {
-            wvec >> *(labels+i);
-        }
-    }
+            fscanf(fp, "%d%c", (labels+i), &newline);
+    }   
 
-    wvec.close();
-
-    //Read validation labels from file
-    ifstream wvec;
-    wvec.open(argv[4]);
+    fclose(fp);
+	
+	//Read validation labels from file
+    fp = fopen(argv[4],"r");
 
     for(int i=0;i<M;i++) {
-            wvec >> *(validation_labels+i);
+            fscanf(fp, "%d%c", (validation_labels+i), &newline);
+    }
+
+    fclose(fp);
+
+    // Read word vectors from file
+    fp = fopen(argv[5],"r");
+
+    for(int i=0;i<1000;i++) {
+        for(int j=0;j<300;j++) {
+            fscanf(fp, "%f%c", (host_word_vecs+300*i+j), &newline);
         }
     }
 
-    wvec.close();
-
-	// Read word vectors from file
-	ifstream wvec;
-	wvec.open(argv[5]);
-	
-	for(int i=0;i<1000;i++) {
-		for(int j=0;j<300;j++) {
-			wvec >> *(host_word_vecs+300*i+j);
-		}
-	}
-	
-	wvec.close();
+    fclose(fp);
 
 	// create timers
 	cudaEvent_t     start, stop;
@@ -183,6 +179,9 @@ int main (int argc, char *argv[])
     // start the timers
     GPU_CHECKERROR( cudaEventCreate( &start ) );
     GPU_CHECKERROR( cudaEventCreate( &stop ) );
+
+	// initialize host weight matrix (4096*300)
+	float host_W[4096*300];
 
 	// initialize weight matrix (4096*300)
 	float *W;

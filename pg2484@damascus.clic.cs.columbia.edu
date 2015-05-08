@@ -1,7 +1,11 @@
+#include <iostream>
+#include <fstream>
 #include <stdio.h>
 #include <sys/time.h>
 #include <cuda.h>
 #include <stdlib.h> 
+
+using namespace std 
 
 // error checking for CUDA calls: use this around ALL your calls!
 #define GPU_CHECKERROR( err ) (gpuCheckError( err, __FILE__, __LINE__ ))
@@ -27,7 +31,7 @@ __global__ void single_image_global_gpu (float *image_vec, int *tr, float *W,
 	int n=threadIdx.x;
 
 	//compute initial low-dimensional image vector Mv
-	float dot_sum=0.0;
+	int dot_sum=0.0;
 	for ( int i=0; i<4096; i++){
 		int idx=n*4096 + i;
 		dot_sum+=W[idx]*image_vec[i];
@@ -94,51 +98,6 @@ __global__ void single_image_global_gpu (float *image_vec, int *tr, float *W,
 	}
 }
 
-float held_out_error(int num_held_out, float *weights, float *held_out_img_vecs, int *class_labels, float *word_vectors){
-	float loss=0.0;
-	float Mv[300];
-	for(int j=0; j<num_held_out; j++){
-		for(int n=0;n<300;n++){
-			float dot_sum=0.0;
-			for ( int i=0; i<4096; i++){
-				int idx=n*4096 + i;
-				dot_sum+=W[idx]*image_vec[i];
-			}
-			Mv[n]=dot_sum;
-		}
-		int class=class_labels[j];
-		float correct_vec[300];
-		for(int t=0;t<300;t++){
-			correct_vec[t]=word_vectors[300*class+t];
-		}
-		
-		float v_w=0.0;
-		for(int t=0;t<300;t++){
-			v_w+=correct_vec[t]*Mv[t];
-		}
-		
-		for(int r=0;r<1000;r++){
-			if(r!=class){
-				//calculate with respect to label
-				float incorrect_vec[300];
-				for(int t=0;t<300;t++){
-					incorrect_vec[t]=word_vectors[300*r+t];
-				}
-				float r_w=0.0;
-				for(int t=0;t<300;t++){
-					r_w+=incorrect_vec[t]*Mv[t];
-				}
-						
-				float loss_j = 0.1 - v_w + r_w; //hard coding of margin
-				if(loss_j>0){
-					loss+=loss_j;
-				}
-			}
-		}
-	}
-	return loss/num_held_out;
-}	
-
 int main (int argc, char *argv[])
 {
 
@@ -159,54 +118,58 @@ int main (int argc, char *argv[])
 	float host_word_vecs[1000*300];
 
 	// Read input images from file
-	FILE *fp;
-	fp = fopen(argv[1],"r");
+	FILE *fp:
+	fp = fopen(argv[1]);
 
-	char newline;	
+	char status, newline;	
 
 	for(int i=0;i<N;i++) {
 		for(int j=0;j<4096;j++) {
-			fscanf(fp, "%f%c", (images+4096*i+j), &newline);
+			fscanf(fp, "%f%c", *(images+4096*i+j),newline, &status);
 		}
 	}
 	
 	fclose(fp);
 
 	// Read validation images from file
-	fp = fopen(argv[2],"r");
+	FILE *fp:
+	fp = fopen(argv[2]);
 	
 	for(int i=0;i<M;i++) {
 		for(int j=0;j<4096;j++) {
-			fscanf(fp, "%f%c", (validation_images+4096*i+j),&newline);
+			fscanf(fp, "%f", *(validation_images+4096*i+j),newline, &status);
 		}
 	}
 	
 	fclose(fp);
 
 	//Read labels from file
-	fp = fopen(argv[3],"r");
+	FILE *fp:
+	fp = fopen(argv[3]);
 	
 	for(int i=0;i<N;i++) {
-			fscanf(fp, "%d%c", (labels+i), &newline);
+			fscanf(fp, "%f", *(labels+i), newline, &status);
 	}
 
 	fclose(fp);
 
 	//Read validation labels from file
-	fp = fopen(argv[4],"r");
+	FILE *fp:
+	fp = fopen(argv[4]);
 	
 	for(int i=0;i<M;i++) {
-			fscanf(fp, "%d%c", (validation_labels+i), &newline);
+			fscanf(fp, "%f", *(validation_labels+i), newline, &status);
 	}
 	
 	fclose(fp);
 
 	// Read word vectors from file
-	fp = fopen(argv[5],"r");
+	FILE *fp:
+	fp = fopen(argv[5]);
 	
 	for(int i=0;i<1000;i++) {
 		for(int j=0;j<300;j++) {
-			fscanf(fp, "%f%c", (host_word_vecs+300*i+j), &newline);
+			fscanf(fp, "%f%c", *(host_word_vecs+300*i+j), newline, &status);
 		}
 	}
 	
