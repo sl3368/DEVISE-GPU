@@ -1,7 +1,11 @@
+#include <iostream>
+#include <fstream>
 #include <stdio.h>
 #include <sys/time.h>
 #include <cuda.h>
 #include <stdlib.h> 
+
+using namespace std 
 
 // error checking for CUDA calls: use this around ALL your calls!
 #define GPU_CHECKERROR( err ) (gpuCheckError( err, __FILE__, __LINE__ ))
@@ -114,54 +118,58 @@ int main (int argc, char *argv[])
 	float host_word_vecs[1000*300];
 
 	// Read input images from file
-	FILE *fp;
-	fp = fopen(argv[1],"r");
+	FILE *fp:
+	fp = fopen(argv[1]);
 
-	char newline;	
+	char status, newline;	
 
 	for(int i=0;i<N;i++) {
 		for(int j=0;j<4096;j++) {
-			fscanf(fp, "%f%c", (images+4096*i+j), &newline);
+			fscanf(fp, "%f%c", *(images+4096*i+j),newline, &status);
 		}
 	}
 	
 	fclose(fp);
 
 	// Read validation images from file
-	fp = fopen(argv[2],"r");
+	FILE *fp:
+	fp = fopen(argv[2]);
 	
 	for(int i=0;i<M;i++) {
 		for(int j=0;j<4096;j++) {
-			fscanf(fp, "%f%c", (validation_images+4096*i+j),&newline);
+			fscanf(fp, "%f", *(validation_images+4096*i+j),newline, &status);
 		}
 	}
 	
 	fclose(fp);
 
 	//Read labels from file
-	fp = fopen(argv[3],"r");
+	FILE *fp:
+	fp = fopen(argv[3]);
 	
 	for(int i=0;i<N;i++) {
-			fscanf(fp, "%d%c", (labels+i), &newline);
+			fscanf(fp, "%f", *(labels+i), newline, &status);
 	}
 
 	fclose(fp);
 
 	//Read validation labels from file
-	fp = fopen(argv[4],"r");
+	FILE *fp:
+	fp = fopen(argv[4]);
 	
 	for(int i=0;i<M;i++) {
-			fscanf(fp, "%d%c", (validation_labels+i), &newline);
+			fscanf(fp, "%f", *(validation_labels+i), newline, &status);
 	}
 	
 	fclose(fp);
 
 	// Read word vectors from file
-	fp = fopen(argv[5],"r");
+	FILE *fp:
+	fp = fopen(argv[5]);
 	
 	for(int i=0;i<1000;i++) {
 		for(int j=0;j<300;j++) {
-			fscanf(fp, "%f%c", (host_word_vecs+300*i+j), &newline);
+			fscanf(fp, "%f%c", *(host_word_vecs+300*i+j), newline, &status);
 		}
 	}
 	
