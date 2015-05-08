@@ -102,14 +102,13 @@ float held_out_error(int num_held_out, float *weights, float *held_out_img_vecs,
 			float dot_sum=0.0;
 			for ( int i=0; i<4096; i++){
 				int idx=n*4096 + i;
-				dot_sum+=W[idx]*image_vec[i];
+				dot_sum+=weights[idx]*held_out_img_vecs[i];
 			}
 			Mv[n]=dot_sum;
 		}
-		int class=class_labels[j];
 		float correct_vec[300];
 		for(int t=0;t<300;t++){
-			correct_vec[t]=word_vectors[300*class+t];
+			correct_vec[t]=word_vectors[300*class_labels[j]+t];
 		}
 		
 		float v_w=0.0;
@@ -118,7 +117,7 @@ float held_out_error(int num_held_out, float *weights, float *held_out_img_vecs,
 		}
 		
 		for(int r=0;r<1000;r++){
-			if(r!=class){
+			if(r!=class_labels[j]){
 				//calculate with respect to label
 				float incorrect_vec[300];
 				for(int t=0;t<300;t++){
