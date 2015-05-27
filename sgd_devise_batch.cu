@@ -148,7 +148,7 @@ int main (int argc, char *argv[])
 {
 
 	// Number of input images
-	int N = 20;
+	int N = 200;
 	
 	// Number of validation images
     	int M = N/4;
